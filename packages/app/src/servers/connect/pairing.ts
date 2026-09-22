@@ -38,7 +38,7 @@ export function pairingUrl(value: { username: "opencode"; password: string }, ho
 export function decodePairingScan(value: string) {
   const url = URL.parse(value.trim())
   if (!url || (url.protocol !== "http:" && url.protocol !== "https:")) return decodePairingCode(value)
-  return decodePairingUrl(url.search, url.origin) ?? decodePairingUrl(url.hash)
+  return decodePairingUrl(url.search, url.origin) ?? decodePairingUrl(url.hash, url.origin)
 }
 
 export function decodePairingUrl(value: string, origin?: string) {

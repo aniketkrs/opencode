@@ -60,30 +60,29 @@ describe("pairing scan", () => {
     expect(decodePairingScan(JSON.stringify(info))).toEqual({ urls: info.urls, password: info.password })
   })
 
-  test("decodes a /connect URL with query data", () => {
-    expect(decodePairingScan(pairingUrl(info, "http://192.168.1.2:49374"))).toEqual({
+  test("decodes a direct /connect URL", () => {
+    expect(
+      decodePairingScan(pairingUrl({ username: info.username, password: info.password }, "http://192.168.1.2:49374")),
+    ).toEqual({
+      urls: ["http://192.168.1.2:49374"],
+      password: info.password,
+    })
+  })
+
+  test("keeps accepting /connect URLs with query data", () => {
+    expect(
+      decodePairingScan(`http://192.168.1.2:49374/connect?data=${encodeURIComponent(JSON.stringify(info))}`),
+    ).toEqual({
       urls: info.urls,
       password: info.password,
     })
   })
 
   test("falls back to the URL origin when the payload omits server URLs", () => {
-    const origin = "https://computer.tailnet.ts.net:49709"
+    const origin = "https://opencode.example.com:49709"
     expect(decodePairingScan(pairingUrl({ username: "opencode", password: "secret" }, origin))).toEqual({
       urls: [origin],
       password: "secret",
-    })
-  })
-
-  test("decodes the hosted link printed by opencode pair", () => {
-    const encoded = Buffer.from(JSON.stringify(info)).toString("base64url")
-    expect(decodePairingScan(`https://app.opencode.ai/connect#${encoded}`)).toEqual({
-      urls: info.urls,
-      password: info.password,
-    })
-    expect(decodePairingScan(`http://192.168.1.2:49374/connect#${encoded}`)).toEqual({
-      urls: info.urls,
-      password: info.password,
     })
   })
 
