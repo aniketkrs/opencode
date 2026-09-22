@@ -23,6 +23,7 @@ import type {
 } from "../../components/session-review"
 import type { SessionReviewExpandMode } from "./session-review-v2"
 import { createLineCommentControllerV2 } from "./line-comment-annotations-v2"
+import { SessionReviewFileHeaderV2 } from "./session-review-file-header-v2"
 import { shouldVirtualizeReviewDiff } from "./session-review-file-preview-v2-virtualize"
 import { LineCommentOverflowIcon } from "@opencode/ui/line-comment"
 import { Menu } from "@opencode/ui/menu"
@@ -253,21 +254,25 @@ export function SessionReviewFilePreviewV2(props: SessionReviewFilePreviewV2Prop
 
   return (
     <>
-      <div data-slot="session-review-v2-file-header">
-        <div data-slot="session-review-v2-file-title">
-          <div data-slot="session-review-v2-file-status" data-type={statusType(view().status)}>
-            {statusLabel(view().status)}
+      <SessionReviewFileHeaderV2
+        title={
+          <>
+            <div data-slot="session-review-v2-file-status" data-type={statusType(view().status)}>
+              {statusLabel(view().status)}
+            </div>
+            <FileIcon node={{ path: props.file, type: "file" }} />
+            <span data-slot="session-review-v2-file-name">{getFilename(props.file)}</span>
+            <Show when={props.file.includes("/")}>
+              <span data-slot="session-review-v2-file-path">{getDirectory(props.file)}</span>
+            </Show>
+          </>
+        }
+        actions={
+          <div data-slot="session-review-v2-file-diff">
+            <DiffChanges changes={view()} />
           </div>
-          <FileIcon node={{ path: props.file, type: "file" }} />
-          <span data-slot="session-review-v2-file-name">{getFilename(props.file)}</span>
-          <Show when={props.file.includes("/")}>
-            <span data-slot="session-review-v2-file-path">{getDirectory(props.file)}</span>
-          </Show>
-        </div>
-        <div data-slot="session-review-v2-file-diff">
-          <DiffChanges changes={view()} />
-        </div>
-      </div>
+        }
+      />
       <div
         ref={(el) => {
           scrollRef = el

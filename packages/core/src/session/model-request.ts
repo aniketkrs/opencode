@@ -229,7 +229,7 @@ export const layer = Layer.effect(
       const entries = Object.entries(shaped.options)
       const generation = Object.fromEntries(entries.filter(([k]) => GENERATION_KEYS.has(k))) as GenerationOptionsFields
       const providerOptions = Object.fromEntries(entries.filter(([k]) => !GENERATION_KEYS.has(k)))
-      const root = session.fork?.sessionID ?? session.id
+      const affinity = session.parentID ?? session.fork?.sessionID ?? session.id
       const base = LLM.request({
         model: model.model,
         http: {
@@ -244,7 +244,7 @@ export const layer = Layer.effect(
           },
         },
         // TODO: Persist cache lineage so nested forks reuse the root session's cache key.
-        promptCacheKey: /^ses_[0-9a-f]{64}$/.test(root) ? root.slice(4) : root,
+        promptCacheKey: /^ses_[0-9a-f]{64}$/.test(affinity) ? affinity.slice(4) : affinity,
         system: shaped.system,
         messages: boundImages(unsupportedParts(shaped.messages, model.capabilities)),
         tools: Array.from(hooked, ([name, t]) => ({ ...t, name })),
@@ -320,15 +320,24 @@ export const layer = Layer.effect(
       // which transport actually carries the request, so both hook families are always offered.
       const webSocket =
         input.webSocket === "session" && model.transport === "websocket"
-          ? transport.bind(session.id, (connect) =>
-              hooks
-                .trigger("session", "experimental.ws.handshake", {
-                  ...scope,
-                  url: connect.url,
-                  headers: connect.headers,
-                })
-                .pipe(Effect.map((event) => ({ url: event.url, headers: event.headers }))),
-            )
+          ? transport.bind(session.id, {
+              handshake: (connect) =>
+                hooks
+                  .trigger("session", "experimental.ws.handshake", {
+                    ...scope,
+                    url: connect.url,
+                    headers: connect.headers,
+                  })
+                  .pipe(Effect.map((event) => ({ url: event.url, headers: event.headers }))),
+              send: (frame) =>
+                hooks
+                  .trigger("session", "experimental.ws.send", { ...scope, frame })
+                  .pipe(Effect.map((event) => event.frame)),
+              receive: (frame) =>
+                hooks
+                  .trigger("session", "experimental.ws.receive", { ...scope, frame })
+                  .pipe(Effect.map((event) => event.frame)),
+            })
           : undefined
 
       return {

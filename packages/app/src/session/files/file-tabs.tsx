@@ -3,10 +3,7 @@ import { createStore } from "solid-js/store"
 import { Dynamic } from "solid-js/web"
 import { makeEventListener } from "@solid-primitives/event-listener"
 import type { FileSearchHandle } from "@opencode/session-ui/file"
-import { Markdown } from "@opencode/session-ui/markdown"
-import { Button } from "@opencode/ui/button"
 import { useFileComponent } from "@opencode/ui/context/file"
-import { FileIcon } from "@opencode/ui/file-icon"
 import { cloneSelectedLineRange, previewSelectedLines } from "@opencode/session-ui/pierre/selection-bridge"
 import { createLineCommentControllerV2 } from "@opencode/session-ui/v2/line-comment-annotations-v2"
 import { sampledChecksum } from "@opencode/util/encode"
@@ -14,23 +11,16 @@ import { LineCommentOverflowIcon } from "@opencode/ui/line-comment"
 import { Menu } from "@opencode/ui/menu"
 import { Tabs } from "@opencode/ui/tabs"
 import { ScrollView } from "@opencode/ui/scroll-view"
-import { showToast } from "@/shell/notifications/toast"
-import {
-  selectionFromLines,
-  useFile,
-  type FileSelection,
-  type FileState,
-  type SelectedLineRange,
-} from "@/workspaces/files/model"
+import { selectionFromLines, useFile, type FileSelection, type SelectedLineRange } from "@/workspaces/files/model"
+import { artifactKind } from "@/workspaces/files/artifact"
+import { ArtifactView } from "@/session/files/artifact-view"
+import { FileToolbar } from "@/session/files/file-toolbar"
 import { useComments } from "@/composer/comments"
 import { useLanguage } from "@/runtime/i18n/language"
 import { useComposerState } from "@/composer/persistence"
 import { getSessionHandoff } from "@/session/handoff"
 import { useSessionLayout } from "@/session/session-layout"
 import { createSessionTabs } from "@/session/helpers"
-import { OpenInAppButton } from "@/session/files/open-in-app-button"
-import { resolveOpenInAppPath } from "@/session/files/open-in-app-path"
-import { useWorkspaceLocation } from "@/workspaces/location"
 
 type SessionFileViewProps = {
   tab: string
@@ -194,7 +184,6 @@ export function SessionFileView(props: SessionFileViewProps) {
   const language = useLanguage()
   const prompt = useComposerState()
   const fileComponent = useFileComponent()
-  const location = useWorkspaceLocation()
   const { sessionKey, tabs, view } = useSessionLayout()
   const activeFileTab = createSessionTabs({
     tabs,
@@ -211,21 +200,6 @@ export function SessionFileView(props: SessionFileViewProps) {
   }
 
   const path = createMemo(() => file.pathFromTab(props.tab))
-  const markdown = createMemo(() => path()?.toLowerCase().endsWith(".md") ?? false)
-  const imageBase = (value: string) => value.replaceAll("\\", "/").split("/").slice(0, -1).join("/")
-  const absolutePath = createMemo(() => resolveOpenInAppPath(location().directory, path() ?? ""))
-  const [display, setDisplay] = createStore({
-    markdown: "rendered" as "rendered" | "source",
-    file: undefined as
-      | {
-          path: string
-          contents: string
-          cacheKey: string | undefined
-          markdown: boolean
-          content: NonNullable<FileState["content"]>
-        }
-      | undefined,
-  })
   const state = createMemo(() => {
     const p = path()
     if (!p) return
@@ -233,17 +207,10 @@ export function SessionFileView(props: SessionFileViewProps) {
   })
   const contents = createMemo(() => state()?.content?.content ?? "")
   const cacheKey = createMemo(() => sampledChecksum(contents()))
-  createEffect(() => {
-    const value = state()
-    const p = path()
-    if (!p || !value?.loaded || !value.content) return
-    setDisplay("file", {
-      path: p,
-      contents: value.content.content,
-      cacheKey: sampledChecksum(value.content.content),
-      markdown: p.toLowerCase().endsWith(".md"),
-      content: value.content,
-    })
+  // Plain text keeps the code view; every other kind is rendered by ArtifactView.
+  const artifact = createMemo(() => {
+    const content = state()?.content
+    return content?.type === "binary" || artifactKind(path() ?? "") !== "text"
   })
   const selectedLines = createMemo<SelectedLineRange | null>(() => {
     const p = path()
@@ -437,29 +404,26 @@ export function SessionFileView(props: SessionFileViewProps) {
     scrollSync.queueRestore()
   })
 
-  const renderFile = (
-    value: { path: string; contents: string; cacheKey: string | undefined; content: NonNullable<FileState["content"]> },
-    interactive = true,
-  ) => (
+  const renderFile = (source: string) => (
     <div class="relative overflow-hidden pb-40">
       <Dynamic
         component={fileComponent}
         mode="text"
         file={{
-          name: value.path,
-          contents: value.contents,
-          cacheKey: value.cacheKey,
+          name: path() ?? "",
+          contents: source,
+          cacheKey: cacheKey(),
         }}
-        enableLineSelection={interactive}
-        enableGutterUtility={interactive}
-        selectedLines={interactive ? activeSelection() : null}
-        commentedLines={interactive ? commentedLines() : []}
+        enableLineSelection
+        enableGutterUtility
+        selectedLines={activeSelection()}
+        commentedLines={commentedLines()}
         onRendered={() => {
           scrollSync.queueRestore()
         }}
-        annotations={interactive ? commentsUi.annotations() : []}
-        renderAnnotation={interactive ? commentsUi.renderAnnotation : undefined}
-        renderGutterUtility={interactive ? commentsUi.renderGutterUtility : undefined}
+        annotations={commentsUi.annotations()}
+        renderAnnotation={commentsUi.renderAnnotation}
+        renderGutterUtility={commentsUi.renderGutterUtility}
         onLineSelected={(range: SelectedLineRange | null) => {
           commentsUi.onLineSelected(range)
         }}
@@ -474,96 +438,52 @@ export function SessionFileView(props: SessionFileViewProps) {
         onLineNumberSelectionEnd={(range: SelectedLineRange | null) => {
           commentsUi.onLineNumberSelectionEnd(range)
         }}
-        search={interactive ? search : undefined}
+        search={search}
         class="select-text"
-        media={{
-          mode: "auto",
-          path: value.path,
-          current: value.content,
-          onLoad: scrollSync.queueRestore,
-          onError: (args: { kind: "image" | "audio" | "svg" }) => {
-            if (args.kind !== "svg") return
-            showToast({
-              variant: "error",
-              title: language.t("toast.file.loadFailed.title"),
-            })
-          },
-        }}
+        // Media and previews have their own viewers below; the code view only ever shows text.
+        media={{ mode: "off" }}
       />
     </div>
   )
 
+  // The code view scrolls inside ScrollView so line state and scroll position persist per tab.
+  const codeView = (source: string) => (
+    <ScrollView class="min-h-0 flex-1" viewportRef={scrollSync.setViewport} onScroll={scrollSync.handleScroll}>
+      {renderFile(source)}
+    </ScrollView>
+  )
+
   const content = () => (
-    <div class="relative h-full min-h-0 flex flex-col">
-      <Show when={path()}>
-        {(value) => (
-          <div data-slot="session-review-v2-file-header">
-            <div data-slot="session-review-v2-file-title">
-              <FileIcon node={{ path: value(), type: "file" }} class="size-4 shrink-0" />
-              <span class="min-w-0 flex-1 truncate text-13-regular text-text-muted" title={value()}>
-                {value()}
-              </span>
-            </div>
-            <div class="ms-auto shrink-0 flex items-center gap-3">
-              <Show when={markdown()}>
-                <Button
-                  size="small"
-                  variant="ghost"
-                  class="min-w-[112px]"
-                  onClick={() => setDisplay("markdown", display.markdown === "rendered" ? "source" : "rendered")}
-                >
-                  {language.t(
-                    display.markdown === "rendered"
-                      ? "session.files.markdown.viewSource"
-                      : "session.files.markdown.viewRendered",
-                  )}
-                </Button>
-              </Show>
-              <OpenInAppButton path={absolutePath} reveal />
-            </div>
-          </div>
-        )}
-      </Show>
-      <ScrollView class="flex-1 min-h-0" viewportRef={scrollSync.setViewport} onScroll={scrollSync.handleScroll}>
-        <Switch>
-          <Match when={state()?.loading && display.file ? display.file : undefined}>
-            {(value) => (
-              <div data-slot="session-file-loading-preview" aria-busy="true" class="opacity-50 pointer-events-none">
-                {value().markdown && display.markdown === "rendered" ? (
-                  <div class="px-6 py-4 pb-40">
-                    <Markdown
-                      text={value().contents}
-                      cacheKey={value().cacheKey}
-                      imageBase={imageBase(value().path)}
-                      deferUntilReady
-                    />
-                  </div>
-                ) : (
-                  renderFile(value(), false)
-                )}
-              </div>
-            )}
-          </Match>
-          <Match when={state()?.loaded}>
-            {markdown() && display.markdown === "rendered" ? (
-              <div class="px-6 py-4 pb-40">
-                <Markdown text={contents()} cacheKey={cacheKey()} imageBase={imageBase(path() ?? "")} deferUntilReady />
-              </div>
-            ) : (
-              renderFile({ path: path() ?? "", contents: contents(), cacheKey: cacheKey(), content: state()!.content! })
-            )}
-          </Match>
-          <Match when={state()?.loading}>
-            <div class="px-6 py-4 text-text-weak">{language.t("common.loading")}…</div>
-          </Match>
-          <Match when={state()?.notFound ? state()?.name : undefined}>
-            {(name) => (
-              <div class="px-6 py-4 text-text-weak">{language.t("file.error.notFound", { name: name() })}</div>
-            )}
-          </Match>
-          <Match when={state()?.error}>{(err) => <div class="px-6 py-4 text-text-weak">{err()}</div>}</Match>
-        </Switch>
-      </ScrollView>
+    <div class="mt-3 relative h-full min-h-0 flex flex-col">
+      <Switch>
+        <Match when={state()?.loaded ? state()?.content : undefined}>
+          {(value) => (
+            <Show
+              when={artifact()}
+              fallback={
+                <>
+                  <FileToolbar path={path() ?? ""} />
+                  {codeView(value().content)}
+                </>
+              }
+            >
+              <ArtifactView
+                path={path() ?? ""}
+                content={value()}
+                cacheKey={cacheKey()}
+                source={codeView(value().content)}
+              />
+            </Show>
+          )}
+        </Match>
+        <Match when={state()?.loading}>
+          <div class="px-6 py-4 text-text-weak">{language.t("common.loading")}…</div>
+        </Match>
+        <Match when={state()?.notFound ? state()?.name : undefined}>
+          {(name) => <div class="px-6 py-4 text-text-weak">{language.t("file.error.notFound", { name: name() })}</div>}
+        </Match>
+        <Match when={state()?.error}>{(err) => <div class="px-6 py-4 text-text-weak">{err()}</div>}</Match>
+      </Switch>
     </div>
   )
 

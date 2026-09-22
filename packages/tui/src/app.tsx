@@ -158,6 +158,7 @@ const appBindingCommands = [
   "opencode.update",
   "server.pair",
   "service.restart",
+  "location.reload",
   "opencode.debug",
   "theme.switch",
   "theme.switch_mode",
@@ -261,6 +262,7 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
           (renderer) => Effect.sync(() => destroyRenderer(renderer)),
         )
       })
+      renderer.setMaxListeners(15)
       const clipboard = yield* Effect.acquireRelease(
         Effect.sync(() => createTuiClipboard(renderer)),
         (clipboard) =>
@@ -725,7 +727,7 @@ function App(props: { pair?: DialogPairCredentials }) {
         title: "New session",
         suggested: route.data.type === "session",
         category: "Session",
-        slash: { name: "new", aliases: ["clear"] },
+        slash: { name: "new" },
         run: () => {
           const model = local.model.current()
           const agent = local.agent.current()
@@ -733,6 +735,33 @@ function App(props: { pair?: DialogPairCredentials }) {
             route.data.type === "session"
               ? (data.session.get(route.data.sessionID)?.location ?? location.ref)
               : undefined
+          route.navigate({
+            type: "home",
+            location: newSessionLocation(
+              config.data.session.new_location,
+              data.location.default().directory,
+              current,
+              location.error?.location,
+            ),
+          })
+          if (agent) local.agent.set(agent.id)
+          if (model) local.model.set(model)
+          dialog.clear()
+        },
+      },
+      {
+        name: "session.clear",
+        title: "Clear session",
+        category: "Session",
+        slash: { name: "clear" },
+        run: () => {
+          const model = local.model.current()
+          const agent = local.agent.current()
+          const current =
+            route.data.type === "session"
+              ? (data.session.get(route.data.sessionID)?.location ?? location.ref)
+              : undefined
+          sessionTabs.close()
           route.navigate({
             type: "home",
             location: newSessionLocation(
@@ -967,7 +996,8 @@ function App(props: { pair?: DialogPairCredentials }) {
             {
               name: "opencode.update",
               title: "Update OpenCode",
-              slash: { name: "update", aliases: ["upgrade"] },
+              description: "Update OpenCode (upgrade)",
+              slash: { name: "update" },
               run: () => updater.open?.("manual"),
               category: "System",
             },
@@ -1003,6 +1033,22 @@ function App(props: { pair?: DialogPairCredentials }) {
             },
           ]
         : []),
+      {
+        name: "location.reload",
+        title: "Reload configuration",
+        slash: { name: "reload" },
+        run: async () => {
+          dialog.clear()
+          toast.show({ variant: "info", message: "Reloading configuration…", duration: 30000 })
+          await client.api.location
+            .reload()
+            .then(() => {
+              toast.show({ variant: "success", message: "Configuration reloaded" })
+            })
+            .catch(toast.error)
+        },
+        category: "System",
+      },
       {
         name: "opencode.debug",
         title: "View debug info",
@@ -1293,7 +1339,7 @@ function App(props: { pair?: DialogPairCredentials }) {
       width={dimensions().width}
       height={dimensions().height}
       flexDirection="column"
-      backgroundColor={theme.background.default}
+      backgroundColor={theme.background.base}
       onMouseDown={(evt) => {
         if (copyOnSelectEnabled()) return
         if (evt.button !== MouseButton.RIGHT) return

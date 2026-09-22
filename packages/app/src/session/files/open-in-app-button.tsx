@@ -10,7 +10,7 @@ import { type OpenApp, useOpenInApp } from "@/session/files/open-in-app"
 
 export function OpenInAppButton(props: { path: () => string; reveal?: boolean }) {
   const language = useLanguage()
-  const state = useOpenInApp({ path: props.path })
+  const state = useOpenInApp({ path: props.path, reveal: props.reveal })
 
   return (
     <Show when={props.path() && state.canOpen()}>
@@ -25,7 +25,7 @@ export function OpenInAppButton(props: { path: () => string; reveal?: boolean })
             onClick={(event) => {
               event.stopPropagation()
               if (state.opening()) return
-              state.openPath(state.current().id, undefined, props.reveal)
+              state.openPath(state.current().id)
             }}
             disabled={state.opening()}
             aria-label={language.t("session.header.open.ariaLabel", { app: state.current().label })}
@@ -52,7 +52,7 @@ export function OpenInAppButton(props: { path: () => string; reveal?: boolean })
           </Menu.Trigger>
           <Menu.Portal>
             <Menu.Content class="open-in-app-v2-menu">
-              <OpenInAppMenuItemsV2 state={state} reveal={props.reveal} close={() => state.setMenu("open", false)} />
+              <OpenInAppMenuItemsV2 state={state} close={() => state.setMenu("open", false)} />
             </Menu.Content>
           </Menu.Portal>
         </Menu>

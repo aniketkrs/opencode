@@ -129,7 +129,7 @@ const showRequestError = (language: ReturnType<typeof useLanguage>, err: unknown
   })
 }
 
-export function useOpenInApp(input: { path: () => string }) {
+export function useOpenInApp(input: { path: () => string; reveal?: boolean }) {
   const platform = usePlatform()
   const server = useServer()
   const language = useLanguage()
@@ -186,7 +186,7 @@ export function useOpenInApp(input: { path: () => string }) {
     setPrefs("app", app)
   }
 
-  const openPath = (app: OpenApp | "finder", target = input.path(), reveal = false) => {
+  const openPath = (app: OpenApp | "finder", target = input.path(), reveal = input.reveal ?? false) => {
     if (opening() || !canOpen() || !platform.openPath) return
     if (!target) return
 

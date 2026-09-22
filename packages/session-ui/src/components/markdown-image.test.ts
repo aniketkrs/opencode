@@ -1,5 +1,22 @@
 import { expect, test } from "bun:test"
-import { localImagePath, resolveMarkdownImagePath } from "./markdown-image"
+import { localImagePath, localLinkPath } from "./markdown-image"
+
+test.each([
+  ["./out/report.html", "./out/report.html"],
+  ["docs/guide.md#usage", "docs/guide.md"],
+  ["file:///tmp/demo.mp4", "/tmp/demo.mp4"],
+  ["file:///C:/tmp/demo%20clip.mp4", "C:/tmp/demo clip.mp4"],
+  ["src/app.ts?plain=1", "src/app.ts"],
+])("recognizes local link %s", (href, path) => {
+  expect(localLinkPath(href)).toBe(path)
+})
+
+test.each(["#section", "?query", "https://example.com/report.html", "mailto:dev@example.com", "", "  "])(
+  "keeps non-local link %s",
+  (href) => {
+    expect(localLinkPath(href)).toBeUndefined()
+  },
+)
 
 test.each([
   ["C:/tmp/chart.png", "C:/tmp/chart.png"],
@@ -34,14 +51,4 @@ test.each([
   "",
 ])("does not read non-local or invalid source %s", (source) => {
   expect(localImagePath(source)).toBeUndefined()
-})
-
-test.each([
-  ["image.png", "docs", "docs/image.png"],
-  ["../image.png", "docs/guides/", "docs/guides/../image.png"],
-  ["image.png", "", "image.png"],
-  ["/tmp/image.png", "docs", "/tmp/image.png"],
-  ["C:/tmp/image.png", "docs", "C:/tmp/image.png"],
-])("resolves image %s from %s", (path, base, expected) => {
-  expect(resolveMarkdownImagePath(path, base)).toBe(expected)
 })
