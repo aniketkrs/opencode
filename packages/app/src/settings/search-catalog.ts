@@ -23,7 +23,7 @@ export const clientSettings: Entry<SettingsRootTab>[] = [
   {
     tab: "pairing",
     label: "settings.pairing.title",
-    keywords: "pair device qr tailscale",
+    keywords: "pair device qr local",
     available: "desktop",
   },
   {

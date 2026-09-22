@@ -48,24 +48,6 @@ export function SettingsPairing() {
     mutationFn: async (enabled: boolean) => platform.setKeepScreenActive?.(enabled),
     onSuccess: (_, enabled) => queryClient.setQueryData(["pairing", "screen-active"], enabled),
   }))
-  const tailscale = useQuery(() => ({
-    queryKey: ["pairing", "tailscale-available"],
-    queryFn: pair.tailscaleAvailable,
-  }))
-  const tailscaleStatus = useQuery(() => ({
-    queryKey: ["pairing", "tailscale-status"],
-    queryFn: pair.tailscaleStatus,
-    enabled: tailscale.isSuccess && tailscale.data === true,
-  }))
-  const tailscaleServe = useMutation(() => ({
-    mutationFn: pair.openTailscale,
-    onSuccess: (value) => queryClient.setQueryData(["pairing", "tailscale-status"], value),
-  }))
-  const tailscaleDisable = useMutation(() => ({
-    mutationFn: pair.disableTailscale,
-    onSuccess: () => queryClient.setQueryData(["pairing", "tailscale-status"], null),
-  }))
-  const tailscaleInfo = () => (tailscaleStatus.isSuccess ? tailscaleStatus.data : undefined)
 
   return (
     <>
@@ -93,7 +75,7 @@ export function SettingsPairing() {
                     <DialogPairing
                       title={language.t("settings.pairing.connection")}
                       info={localInfo()}
-                      host={localHost()}
+                      host={localHost()!}
                     />
                   ))
                 }
@@ -130,109 +112,17 @@ export function SettingsPairing() {
             </p>
           </Show>
         </section>
-
-        <Show when={tailscale.isSuccess && tailscale.data === true}>
-          <section class="settings-section" aria-label={language.t("pair.tailscale.title")}>
-            <Show
-              when={tailscaleInfo()}
-              fallback={
-                <>
-                  <h3 class="settings-section-title">{language.t("pair.tailscale.title")}</h3>
-                  <SettingsList>
-                    <div class="flex min-h-24 flex-col items-center justify-center gap-3 px-4 py-6">
-                      <Button
-                        variant="neutral"
-                        disabled={!localInfo() || tailscaleStatus.isPending || tailscaleServe.isPending}
-                        aria-busy={tailscaleServe.isPending}
-                        onClick={() => tailscaleServe.mutate()}
-                      >
-                        <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                          <g opacity="0.3">
-                            <circle cx="3" cy="3" r="3" />
-                            <circle cx="12" cy="3" r="3" />
-                            <circle cx="21" cy="3" r="3" />
-                            <circle cx="3" cy="21" r="3" />
-                            <circle cx="21" cy="21" r="3" />
-                          </g>
-                          <circle cx="3" cy="12" r="3" />
-                          <circle cx="12" cy="12" r="3" />
-                          <circle cx="21" cy="12" r="3" />
-                          <circle cx="12" cy="21" r="3" />
-                        </svg>
-                        {language.t(tailscaleServe.isPending ? "pair.tailscale.opening" : "pair.tailscale.enable")}
-                      </Button>
-                      <span class="text-center text-[13px] leading-text-base text-v2-text-text-muted">
-                        {language.t("pair.tailscale.description")}
-                      </span>
-                    </div>
-                  </SettingsList>
-                </>
-              }
-            >
-              <h3 class="settings-section-title">{language.t("pair.tailscale.title")}</h3>
-              <SettingsList>
-                <SettingsRow
-                  title={language.t("pair.tailscale.serve")}
-                  description={language.t("pair.tailscale.description")}
-                >
-                  <div class="flex flex-col items-end gap-2">
-                    <Button
-                      variant="neutral"
-                      disabled={!tailscaleInfo() || tailscaleDisable.isPending}
-                      onClick={() =>
-                        dialog.push(() => (
-                          <DialogPairing
-                            title={language.t("pair.tailscale.title")}
-                            info={tailscaleInfo()}
-                            host={tailscaleInfo()?.urls[0]}
-                          />
-                        ))
-                      }
-                    >
-                      {language.t("pair.qr.open")}
-                    </Button>
-                    <Button
-                      variant="neutral"
-                      disabled={
-                        !localInfo() ||
-                        tailscaleStatus.isPending ||
-                        tailscaleServe.isPending ||
-                        tailscaleDisable.isPending
-                      }
-                      onClick={() => tailscaleDisable.mutate()}
-                    >
-                      {language.t("pair.tailscale.disable")}
-                    </Button>
-                  </div>
-                </SettingsRow>
-              </SettingsList>
-            </Show>
-            <Show when={tailscaleStatus.error || tailscaleServe.error || tailscaleDisable.error}>
-              <p class="text-text-danger-base" role="alert">
-                {language.t("pair.tailscale.error")}
-              </p>
-            </Show>
-          </section>
-        </Show>
       </div>
     </>
   )
 }
 
-function DialogPairing(props: { title: string; info: PairingInfo | null | undefined; host?: string }) {
+function DialogPairing(props: { title: string; info: PairingInfo | null | undefined; host: string }) {
   const language = useLanguage()
   const platform = usePlatform()
   const url = createMemo(() => {
     if (!props.info) return
-    const host = props.host ?? (platform.platform === "web" ? location.origin : undefined)
-    return pairingUrl(
-      {
-        urls: host ? [host] : props.info.urls.slice(0, 1),
-        username: props.info.username,
-        password: props.info.password,
-      },
-      host,
-    )
+    return pairingUrl({ username: props.info.username, password: props.info.password }, props.host)
   })
   const origin = createMemo(() => {
     const value = url()

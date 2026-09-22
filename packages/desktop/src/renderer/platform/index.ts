@@ -91,10 +91,6 @@ export function createDesktopPlatform(
     },
     pair: {
       info: () => api.pairInfo(),
-      tailscaleAvailable: () => api.pairTailscaleAvailable(),
-      tailscaleStatus: () => api.pairTailscaleStatus(),
-      openTailscale: () => api.pairOpenTailscale(),
-      disableTailscale: () => api.pairDisableTailscale(),
     },
   }
 }

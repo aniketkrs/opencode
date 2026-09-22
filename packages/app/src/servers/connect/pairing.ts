@@ -1,4 +1,5 @@
 import { Option, Schema } from "effect"
+import { base64Encode } from "@opencode/util/encode"
 import { normalizeServerUrl } from "@/runtime/server/registry"
 
 const pairing = Schema.fromJsonString(
@@ -23,19 +24,14 @@ export function decodePairingCode(value: string, origin?: string) {
   const result = Schema.decodeUnknownOption(pairing)(value)
   if (Option.isNone(result)) return
   const urls = [
-    ...new Set(
-      (result.value.urls ?? (origin ? [origin] : [])).map(serverAddress).filter((url) => url !== undefined),
-    ),
+    ...new Set((result.value.urls ?? (origin ? [origin] : [])).map(serverAddress).filter((url) => url !== undefined)),
   ]
   if (!urls.length) return
   return { urls, password: result.value.password }
 }
 
-export function pairingUrl(
-  value: { urls?: readonly string[]; username: "opencode"; password: string },
-  host = "https://app.opencode.ai",
-) {
-  return `${new URL("/connect", host)}?data=${encodeURIComponent(JSON.stringify(value))}`
+export function pairingUrl(value: { username: "opencode"; password: string }, host: string) {
+  return `${new URL("/connect", host)}#${base64Encode(JSON.stringify(value))}`
 }
 
 export function decodePairingUrl(value: string, origin?: string) {
@@ -54,5 +50,5 @@ export function decodePairingUrl(value: string, origin?: string) {
       .replaceAll("_", "/")
       .padEnd(Math.ceil(encoded.length / 4) * 4, "="),
   )
-  return decodePairingCode(new TextDecoder().decode(Uint8Array.from(binary, (char) => char.charCodeAt(0))))
+  return decodePairingCode(new TextDecoder().decode(Uint8Array.from(binary, (char) => char.charCodeAt(0))), origin)
 }

@@ -152,8 +152,4 @@ export const api: ElectronAPI = {
   pairInfo: () => invoke("AppPairInfo").then(mutable),
   getKeepScreenActive: () => invoke("AppGetKeepScreenActive"),
   setKeepScreenActive: (enabled) => invoke("AppSetKeepScreenActive", { enabled }),
-  pairTailscaleAvailable: () => invoke("AppPairTailscaleAvailable"),
-  pairTailscaleStatus: () => invoke("AppPairTailscaleStatus").then(mutable),
-  pairOpenTailscale: () => invoke("AppPairOpenTailscale").then(mutable),
-  pairDisableTailscale: () => invoke("AppPairDisableTailscale"),
 }

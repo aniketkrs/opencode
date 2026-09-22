@@ -21,7 +21,7 @@ test("pairs locally without checking the server and authenticates subsequent req
     await route.fulfill({ status: 503, contentType: "application/json", body: "{}" })
   })
 
-  await page.goto(`/connect?data=${encodeURIComponent(JSON.stringify({ username: "opencode", password }))}`)
+  await page.goto(`/connect#${Buffer.from(JSON.stringify({ username: "opencode", password })).toString("base64url")}`)
   await expect(page).toHaveURL(`${origin}/`)
   await expect(page.getByRole("button", { name: "Home", exact: true })).toBeVisible()
   await expect

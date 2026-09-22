@@ -91,8 +91,4 @@ export type ElectronAPI = {
   pairInfo(): Promise<typeof PairingInfo.Type>
   getKeepScreenActive(): Promise<boolean>
   setKeepScreenActive(enabled: boolean): Promise<void>
-  pairTailscaleAvailable(): Promise<boolean>
-  pairTailscaleStatus(): Promise<typeof PairingInfo.Type | null>
-  pairOpenTailscale(): Promise<typeof PairingInfo.Type>
-  pairDisableTailscale(): Promise<void>
 }

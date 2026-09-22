@@ -60,13 +60,6 @@ export const AppSetNativeTranslations = Rpc.make("AppSetNativeTranslations", {
 })
 export const AppRelaunch = Rpc.make("AppRelaunch")
 export const AppPairInfo = Rpc.make("AppPairInfo", { success: PairingInfo, error: Schema.String })
-export const AppPairTailscaleAvailable = Rpc.make("AppPairTailscaleAvailable", { success: Schema.Boolean })
-export const AppPairTailscaleStatus = Rpc.make("AppPairTailscaleStatus", {
-  success: Schema.NullOr(PairingInfo),
-  error: Schema.String,
-})
-export const AppPairOpenTailscale = Rpc.make("AppPairOpenTailscale", { success: PairingInfo, error: Schema.String })
-export const AppPairDisableTailscale = Rpc.make("AppPairDisableTailscale", { error: Schema.String })
 export const AppGetKeepScreenActive = Rpc.make("AppGetKeepScreenActive", { success: Schema.Boolean })
 export const AppSetKeepScreenActive = Rpc.make("AppSetKeepScreenActive", {
   payload: { enabled: Schema.Boolean },
@@ -89,10 +82,6 @@ export const AppRpcs = RpcGroup.make(
   AppSetNativeTranslations,
   AppRelaunch,
   AppPairInfo,
-  AppPairTailscaleAvailable,
-  AppPairTailscaleStatus,
-  AppPairOpenTailscale,
-  AppPairDisableTailscale,
   AppGetKeepScreenActive,
   AppSetKeepScreenActive,
 )

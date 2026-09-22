@@ -68,7 +68,7 @@ export function AppRoutes() {
 function ConnectRoute() {
   const navigate = useNavigate()
   const servers = useServers()
-  const pairing = decodePairingUrl(location.search, location.origin) ?? decodePairingUrl(location.hash)
+  const pairing = decodePairingUrl(location.search, location.origin) ?? decodePairingUrl(location.hash, location.origin)
   onMount(() => {
     if (!pairing) return
     servers.add({ type: "http", http: { url: pairing.urls[0], password: pairing.password } })

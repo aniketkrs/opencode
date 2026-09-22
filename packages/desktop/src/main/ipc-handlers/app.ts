@@ -34,7 +34,7 @@ export const appHandlers = AppRpcs.toLayer(
     const storage = yield* DesktopStorage.Service
     const screenActivity = createScreenActivity(storage)
     yield* Effect.addFinalizer(() => Effect.sync(screenActivity.dispose))
-    const pairing = createPairing(storage)
+    const pairing = createPairing()
     const runFork = Effect.runForkWith(yield* Effect.context())
     return AppRpcs.of({
       AppAwaitInitialization: () => background.connection.pipe(Effect.map(SidecarCredentials.ready)),
@@ -79,10 +79,6 @@ export const appHandlers = AppRpcs.toLayer(
       AppGetKeepScreenActive: () => Effect.sync(screenActivity.get),
       AppSetKeepScreenActive: ({ enabled }) =>
         Effect.try(() => screenActivity.set(enabled)).pipe(Effect.mapError(String)),
-      AppPairTailscaleAvailable: () => Effect.promise(pairing.tailscaleAvailable),
-      AppPairTailscaleStatus: () => pair(pairing.tailscaleStatus),
-      AppPairOpenTailscale: () => pair(pairing.openTailscale),
-      AppPairDisableTailscale: () => pair(pairing.disableTailscale),
     })
   }),
 )

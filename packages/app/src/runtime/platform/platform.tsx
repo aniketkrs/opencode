@@ -138,10 +138,6 @@ type PlatformBase = {
   /** Pair another device with the local desktop server. */
   pair?: {
     info(): Promise<PairingInfo>
-    tailscaleAvailable(): Promise<boolean>
-    tailscaleStatus(): Promise<PairingInfo | null>
-    openTailscale(): Promise<PairingInfo>
-    disableTailscale(): Promise<void>
   }
 }
 
